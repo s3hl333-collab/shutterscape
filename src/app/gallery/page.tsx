@@ -89,8 +89,22 @@ export default function GalleryPage() {
         <a className="w" href="/">
           <span data-a="eye" className="in"></span>shutterscape
         </a>
-        <a className="l" href="/">
-          ← Back to Home
+        <a
+          href="/"
+          style={{
+            padding: "4px 14px",
+            borderRadius: "99px",
+            background: "var(--mus)",
+            color: "var(--ink)",
+            border: "2px solid var(--ink)",
+            textDecoration: "none",
+            fontWeight: 800,
+            fontSize: "13px",
+            marginLeft: "auto",
+            boxShadow: "2px 2px 0 var(--ink)",
+          }}
+        >
+          ← Home
         </a>
         <a className="l" href="/#stories">
           Stories
@@ -161,15 +175,18 @@ export default function GalleryPage() {
           </small>
         </div>
 
-        {/* Category Filter Bar */}
+        {/* Category Filter Bar (Smooth horizontal scroll on mobile) */}
         <div
           style={{
             position: "relative",
             zIndex: 2,
             display: "flex",
-            gap: "10px",
-            flexWrap: "wrap",
-            marginBottom: "38px",
+            gap: "8px",
+            overflowX: "auto",
+            paddingBottom: "8px",
+            marginBottom: "32px",
+            scrollbarWidth: "none",
+            WebkitOverflowScrolling: "touch",
           }}
         >
           {CATEGORIES.map((c) => {
@@ -181,13 +198,15 @@ export default function GalleryPage() {
                 onClick={() => setSelectedCat(c)}
                 style={{
                   padding: "7px 16px",
-                  border: "3px solid var(--ink)",
+                  border: "2px solid var(--ink)",
                   borderRadius: "99px",
                   background: active ? "var(--mus)" : "var(--bone)",
                   color: "var(--ink)",
-                  font: "700 14px Syne, sans-serif",
-                  boxShadow: active ? "3px 3px 0 var(--ink)" : "none",
+                  font: "700 13px Syne, sans-serif",
+                  boxShadow: active ? "2px 2px 0 var(--ink)" : "none",
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 {c}
@@ -215,22 +234,23 @@ export default function GalleryPage() {
               position: "relative",
               zIndex: 2,
               background: "var(--bone)",
-              border: "4px solid var(--ink)",
-              boxShadow: "8px 8px 0 var(--ink)",
-              padding: "48px 28px",
+              border: "3px solid var(--ink)",
+              boxShadow: "6px 6px 0 var(--ink)",
+              padding: "36px 20px",
               textAlign: "center",
               maxWidth: "620px",
-              margin: "40px auto",
+              margin: "30px auto",
+              borderRadius: "10px",
             }}
           > 
             <div
-              style={{ width: "84px", margin: "0 auto 16px" }}
+              style={{ width: "72px", margin: "0 auto 14px" }}
               dangerouslySetInnerHTML={{ __html: ART.camera() }}
             />
-            <h3 style={{ fontSize: "34px", marginBottom: "10px" }}>
+            <h3 style={{ fontSize: "28px", marginBottom: "8px" }}>
               No uploaded photographs yet
             </h3>
-            <p style={{ margin: "0 0 22px", fontSize: "16px" }}>
+            <p style={{ margin: "0 0 20px", fontSize: "15px" }}>
               The 18 default frames remain on the main homepage. Photographs can be uploaded securely via the Admin Dashboard.
             </p>
             <a
@@ -246,12 +266,12 @@ export default function GalleryPage() {
               position: "relative",
               zIndex: 2,
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
-              gap: "28px",
+              gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
+              gap: "20px",
             }}
           >
             {filteredItems.map((p, idx) => {
-              const tilt = (((idx * 29) % 5) - 2) * 0.6;
+              const tilt = (((idx * 29) % 5) - 2) * 0.35;
               return (
                 <article
                   key={p.id}
@@ -259,8 +279,8 @@ export default function GalleryPage() {
                     background: "var(--bone)",
                     border: "3px solid var(--ink)",
                     borderRadius: "12px",
-                    boxShadow: "7px 7px 0 var(--ink)",
-                    padding: "14px",
+                    boxShadow: "5px 5px 0 var(--ink)",
+                    padding: "12px",
                     transform: `rotate(${tilt}deg)`,
                     transition: "transform .25s",
                     display: "flex",
@@ -272,11 +292,11 @@ export default function GalleryPage() {
                   <div
                     style={{
                       aspectRatio: "4/3",
-                      border: "3px solid var(--ink)",
-                      borderRadius: "10px",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "8px",
                       overflow: "hidden",
                       background: "#16130f",
-                      marginBottom: "12px",
+                      marginBottom: "10px",
                     }}
                   >
                     {p.video ? (
@@ -316,14 +336,14 @@ export default function GalleryPage() {
                       gap: "8px",
                     }}
                   >
-                    <h3 style={{ fontSize: "24px", lineHeight: 1.1 }}>
+                    <h3 style={{ fontSize: "22px", lineHeight: 1.15 }}>
                       {p.title}
                     </h3>
                     <span
                       style={{
                         fontSize: "11px",
                         fontWeight: 800,
-                        padding: "2px 9px",
+                        padding: "2px 8px",
                         borderRadius: "99px",
                         border: "2px solid var(--ink)",
                         background: "var(--mus)",
@@ -349,9 +369,9 @@ export default function GalleryPage() {
                     <p
                       style={{
                         margin: "8px 0 0",
-                        fontSize: "14px",
+                        fontSize: "13px",
                         lineHeight: 1.4,
-                        paddingTop: "8px",
+                        paddingTop: "6px",
                         borderTop: "1px dashed var(--ink)",
                       }}
                     >
@@ -384,11 +404,11 @@ export default function GalleryPage() {
             position: "fixed",
             inset: 0,
             zIndex: 220,
-            background: "rgba(29, 26, 23, 0.88)",
+            background: "rgba(29, 26, 23, 0.9)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "24px",
+            padding: "clamp(10px, 3vw, 24px)",
           }}
           onClick={() => setLightboxItem(null)}
         >
@@ -396,22 +416,53 @@ export default function GalleryPage() {
             style={{
               background: "var(--wh)",
               color: "var(--ink)",
-              border: "4px solid var(--ink)",
-              borderRadius: "14px",
-              boxShadow: "10px 10px 0 var(--mus)",
-              padding: "18px",
+              border: "3px solid var(--ink)",
+              borderRadius: "12px",
+              boxShadow: "6px 6px 0 var(--mus)",
+              padding: "14px",
               maxWidth: "860px",
               width: "100%",
+              maxHeight: "92vh",
+              overflowY: "auto",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
-                borderRadius: "10px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--teal)" }}>
+                {lightboxItem.cat} · {lightboxItem.who}
+              </span>
+              <button
+                type="button"
+                onClick={() => setLightboxItem(null)}
+                style={{
+                  background: "var(--tom)",
+                  color: "#fff",
+                  border: "2px solid var(--ink)",
+                  borderRadius: "99px",
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                borderRadius: "8px",
                 overflow: "hidden",
-                border: "3px solid var(--ink)",
+                border: "2px solid var(--ink)",
                 background: "#000",
-                maxHeight: "70vh",
+                maxHeight: "56vh",
               }}
             >
               {lightboxItem.video ? (
@@ -421,7 +472,7 @@ export default function GalleryPage() {
                   autoPlay
                   style={{
                     width: "100%",
-                    maxHeight: "70vh",
+                    maxHeight: "56vh",
                     objectFit: "contain",
                     display: "block",
                   }}
@@ -432,7 +483,7 @@ export default function GalleryPage() {
                   alt={lightboxItem.title}
                   style={{
                     width: "100%",
-                    maxHeight: "70vh",
+                    maxHeight: "56vh",
                     objectFit: "contain",
                     display: "block",
                   }}

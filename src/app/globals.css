@@ -102,9 +102,17 @@ header.hero {
   border-color: var(--ink);
   background: var(--mus);
 }
+.mobile-menu-btn {
+  display: none;
+}
 @media (max-width: 720px) {
   .nv .l {
     display: none;
+  }
+  .mobile-menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
   }
 }
 
@@ -1571,8 +1579,321 @@ footer .big {
   z-index: 2;
   margin-bottom: 26px;
 }
-.hm {
+/* ==========================================================================
+   Comprehensive Mobile & Small-Screen Responsiveness Overrides
+   ========================================================================== */
+
+/* Universal Mobile Safeguards */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
 }
+
+@media (max-width: 768px) {
+  /* Prevent iOS Safari automatic zoom on form focus */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Section Padding */
+  section,
+  header.hero {
+    padding: 85px 16px 55px;
+  }
+
+  /* Heading sizes on tablets & mobile */
+  .hd {
+    margin-bottom: 28px;
+    gap: 12px;
+  }
+  .hd h2 {
+    font-size: clamp(36px, 10vw, 68px);
+    line-height: 1;
+  }
+  .hd small {
+    font-size: 14px;
+    max-width: 100%;
+  }
+
+  /* Navigation Bar on mobile */
+  .nv {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .nv .w {
+    font-size: 20px;
+    gap: 6px;
+  }
+  .nv .w span {
+    width: 28px;
+  }
+
+  /* Hero Section */
+  .hero {
+    min-height: auto;
+    padding-top: 110px;
+    padding-bottom: 50px;
+  }
+  .hero h1 {
+    font-size: clamp(52px, 16vw, 130px);
+    line-height: 0.9;
+  }
+  .hero h1 .b {
+    margin-left: 0;
+  }
+  .hero p.t {
+    font-size: 16px;
+    padding: 12px 14px;
+    margin: 18px 0;
+    box-shadow: 4px 4px 0 var(--ink);
+    max-width: 100%;
+  }
+  .btns {
+    gap: 10px;
+    width: 100%;
+  }
+  .btns .bt {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 11px 18px;
+    font-size: 14px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+
+  /* Retro Collage Gallery Grid */
+  .gg {
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-auto-rows: 140px !important;
+    gap: 10px !important;
+  }
+  .w2 {
+    grid-column: span 2 !important;
+  }
+  .w3 {
+    grid-column: span 2 !important;
+    grid-row: span 2 !important;
+  }
+  .h2 {
+    grid-row: span 2 !important;
+  }
+  .gg figure {
+    transform: none !important;
+    border-width: 2px;
+  }
+
+  /* Glimpses of Us Retro TVs */
+  .sky {
+    padding-top: 130px !important;
+    padding-bottom: 80px !important;
+  }
+  .tvs {
+    width: 100% !important;
+    margin-left: 0 !important;
+    aspect-ratio: 1.7 !important;
+  }
+  .skyc {
+    max-width: 95% !important;
+    font-size: 13px !important;
+    margin-top: 18px !important;
+  }
+
+  /* Philosophy Carousel */
+  .pls {
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+    padding: 24px 16px 20px !important;
+    box-shadow: 5px 5px 0 var(--bone) !important;
+    border-width: 3px !important;
+  }
+  .pls .stt {
+    max-width: 180px !important;
+    margin: 0 auto 14px !important;
+  }
+  .pls .ar {
+    padding-bottom: 10px !important;
+  }
+  .pls h3 {
+    font-size: clamp(28px, 7vw, 42px) !important;
+  }
+  .pls .tx {
+    font-size: 14px !important;
+    margin-bottom: 14px !important;
+  }
+  .pls .try {
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    box-shadow: 3px 3px 0 var(--ink) !important;
+  }
+
+  /* Weird Dictionary & Rituals Cards */
+  .rt {
+    gap: 14px !important;
+  }
+  .rt > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+    box-shadow: 4px 4px 0 #000 !important;
+    box-sizing: border-box !important;
+    padding: 14px !important;
+  }
+
+  /* Students & Leads */
+  .row {
+    justify-content: center !important;
+    gap: 16px !important;
+    margin-bottom: 38px !important;
+  }
+  .cd {
+    width: min(100%, 280px) !important;
+    max-width: 100% !important;
+    transform: none !important;
+    box-shadow: 4px 4px 0 var(--ink) !important;
+    box-sizing: border-box !important;
+  }
+  .cd.s {
+    width: calc(50% - 10px) !important;
+    min-width: 130px !important;
+  }
+  .sub {
+    font-size: 26px !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Events & Notices Retro TV */
+  .tv {
+    padding: 14px !important;
+    box-shadow: 6px 6px 0 var(--ink) !important;
+    border-radius: 20px !important;
+    margin-top: 55px !important;
+    grid-template-columns: 1fr !important;
+  }
+  .scr {
+    min-height: 220px !important;
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+  .scr h3 {
+    font-size: 24px !important;
+  }
+  .ctl {
+    flex-direction: row !important;
+    gap: 10px !important;
+    margin-top: 6px !important;
+  }
+  .ctl button {
+    width: 54px !important;
+    height: 54px !important;
+    font-size: 11px !important;
+    border-width: 3px !important;
+  }
+  .ctl i {
+    width: 38px !important;
+    height: 38px !important;
+    border-width: 3px !important;
+  }
+
+  /* Random Frame Picker Card */
+  .pf {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+    box-shadow: 5px 5px 0 var(--ink) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Soundboard Pads */
+  .pads {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+  .pad {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    padding: 12px 10px !important;
+    box-shadow: 4px 4px 0 var(--ink) !important;
+  }
+  .pad b {
+    font-size: 20px !important;
+  }
+
+  /* Interactive 3D Camera Section */
+  .ag {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  .stg {
+    width: 100% !important;
+    margin: 10px auto !important;
+  }
+  .ai {
+    padding: 16px !important;
+    transform: none !important;
+    box-shadow: 5px 5px 0 var(--mus) !important;
+    min-height: 0 !important;
+  }
+  .ai h3 {
+    font-size: 30px !important;
+  }
+  .hs {
+    width: 38px !important;
+    height: 38px !important;
+    margin: -19px 0 0 -19px !important;
+    font-size: 13px !important;
+  }
+
+  /* Contact & Form */
+  .cg {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+  .c form button {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 13px !important;
+  }
+
+  /* Footer */
+  footer {
+    padding: 55px 16px 30px !important;
+  }
+  footer .big {
+    font-size: clamp(44px, 15vw, 90px) !important;
+    margin-bottom: 16px !important;
+  }
+}
+
+/* Extra Small Phones (<= 400px, e.g. iPhone SE, Galaxy A series) */
+@media (max-width: 400px) {
+  .hero h1 {
+    font-size: 46px !important;
+  }
+  .gg {
+    grid-template-columns: 1fr !important;
+    grid-auto-rows: 180px !important;
+  }
+  .w2,
+  .w3 {
+    grid-column: span 1 !important;
+  }
+  .cd.s {
+    width: 100% !important;
+  }
+  .pads {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 700px) {
   .hm {
     display: none;

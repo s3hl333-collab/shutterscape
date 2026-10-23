@@ -451,46 +451,72 @@ export default function AdminDashboardPage() {
     border: "3px solid var(--ink)",
     background: "#fff",
     color: "var(--ink)",
-    font: "15px Syne, sans-serif",
+    font: "16px Syne, sans-serif",
     width: "100%",
   };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bone)", paddingBottom: "80px" }}>
-      <nav className="nv" aria-label="Admin Top Bar">
-        <a className="w" href="/">
+      <nav
+        className="nv"
+        aria-label="Admin Top Bar"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "10px",
+          padding: "10px clamp(12px, 3vw, 28px)",
+        }}
+      >
+        <a className="w" href="/" style={{ marginRight: "auto" }}>
           <span
             className="in"
             dangerouslySetInnerHTML={{ __html: ART.eye() }}
           />
           shutterscape admin
         </a>
-        <span style={{ fontSize: "13px", opacity: 0.8 }}>
-          Signed in as <b>{adminUser?.username}</b>
-        </span>
-        <a href="/">View Live Site ↗</a>
-        <button
-          type="button"
-          onClick={handleLogout}
-          style={{
-            background: "var(--tom)",
-            color: "#fff",
-            border: "2px solid var(--ink)",
-            borderRadius: "99px",
-            padding: "4px 12px",
-            font: "700 13px Syne, sans-serif",
-            cursor: "pointer",
-          }}
-        >
-          Log out
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "12px", opacity: 0.85 }}>
+            Signed in: <b>{adminUser?.username}</b>
+          </span>
+          <a
+            href="/"
+            style={{
+              fontSize: "12px",
+              padding: "4px 10px",
+              border: "2px solid var(--ink)",
+              borderRadius: "99px",
+              textDecoration: "none",
+              fontWeight: 700,
+              background: "var(--wh)",
+            }}
+          >
+            Live Site ↗
+          </a>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              background: "var(--tom)",
+              color: "#fff",
+              border: "2px solid var(--ink)",
+              borderRadius: "99px",
+              padding: "4px 12px",
+              font: "700 12px Syne, sans-serif",
+              cursor: "pointer",
+            }}
+          >
+            Log out
+          </button>
+        </div>
       </nav>
 
       <div
         style={{
           maxWidth: "1180px",
           margin: "0 auto",
-          padding: "96px clamp(16px, 4vw, 40px) 0",
+          padding: "100px clamp(14px, 4vw, 40px) 0",
         }}
       >
         {statusBanner && (
@@ -499,10 +525,11 @@ export default function AdminDashboardPage() {
               background: "var(--teal)",
               color: "#fff",
               border: "3px solid var(--ink)",
-              boxShadow: "5px 5px 0 var(--ink)",
-              padding: "12px 18px",
-              marginBottom: "22px",
+              boxShadow: "4px 4px 0 var(--ink)",
+              padding: "10px 16px",
+              marginBottom: "20px",
               fontWeight: 700,
+              fontSize: "14px",
             }}
           >
             {statusBanner}
@@ -512,10 +539,10 @@ export default function AdminDashboardPage() {
         {/* Section Tabs */}
         <div
           style={{
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap",
-            marginBottom: "28px",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
+            gap: "10px",
+            marginBottom: "24px",
           }}
         >
           {(
@@ -531,7 +558,13 @@ export default function AdminDashboardPage() {
               type="button"
               className={activeTab === key ? "bt" : "bt o"}
               onClick={() => setActiveTab(key)}
-              style={{ fontSize: "15px", padding: "10px 20px" }}
+              style={{
+                fontSize: "14px",
+                padding: "10px 12px",
+                textAlign: "center",
+                width: "100%",
+                boxShadow: activeTab === key ? "3px 3px 0 var(--ink)" : "none",
+              }}
             >
               {label}
             </button>
@@ -540,13 +573,14 @@ export default function AdminDashboardPage() {
 
         {/* TAB 1: GALLERY MANAGER */}
         {activeTab === "gallery" && (
-          <div style={{ display: "grid", gap: "32px" }}>
+          <div style={{ display: "grid", gap: "28px" }}>
             <div
               style={{
                 background: "var(--wh)",
-                border: "4px solid var(--ink)",
-                boxShadow: "8px 8px 0 var(--ink)",
-                padding: "26px",
+                border: "3px solid var(--ink)",
+                boxShadow: "6px 6px 0 var(--ink)",
+                padding: "clamp(16px, 4vw, 26px)",
+                borderRadius: "10px",
               }}
             >
               <h2 style={{ fontSize: "36px", marginBottom: "6px" }}>
@@ -966,9 +1000,10 @@ export default function AdminDashboardPage() {
             <div
               style={{
                 background: "var(--wh)",
-                border: "4px solid var(--ink)",
-                boxShadow: "8px 8px 0 var(--ink)",
-                padding: "26px",
+                border: "3px solid var(--ink)",
+                boxShadow: "6px 6px 0 var(--ink)",
+                padding: "clamp(16px, 4vw, 26px)",
+                borderRadius: "10px",
               }}
             >
               <h2 style={{ fontSize: "36px", marginBottom: "6px" }}>
@@ -1332,9 +1367,10 @@ export default function AdminDashboardPage() {
             <div
               style={{
                 background: "var(--wh)",
-                border: "4px solid var(--ink)",
-                boxShadow: "8px 8px 0 var(--ink)",
-                padding: "26px",
+                border: "3px solid var(--ink)",
+                boxShadow: "6px 6px 0 var(--ink)",
+                padding: "clamp(16px, 4vw, 26px)",
+                borderRadius: "10px",
               }}
             >
               <h2 style={{ fontSize: "36px", marginBottom: "6px" }}>

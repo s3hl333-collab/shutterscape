@@ -62,16 +62,17 @@ export default function AdminLoginPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "100px 20px 60px",
+          padding: "90px clamp(14px, 4vw, 24px) 50px",
           position: "relative",
         }}
       >
         <div
           style={{
             background: "var(--wh)",
-            border: "4px solid var(--ink)",
-            boxShadow: "10px 10px 0 var(--ink)",
-            padding: "36px",
+            border: "3px solid var(--ink)",
+            boxShadow: "6px 6px 0 var(--ink)",
+            padding: "clamp(20px, 5vw, 36px)",
+            borderRadius: "12px",
             width: "min(460px, 100%)",
             position: "relative",
             zIndex: 2,

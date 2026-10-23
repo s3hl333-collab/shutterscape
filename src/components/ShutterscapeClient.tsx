@@ -19,6 +19,7 @@ export default function ShutterscapeClient({
   const [photos, setPhotos] = useState<GalleryItem[]>(initialGallery);
   const [members] = useState<MemberItem[]>(initialMembers);
   const [activities] = useState<ActivityItem[]>(initialActivities);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Keep a mutable ref to photos so the vanilla TV & random-picker intervals always read the latest gallery list
   const photosRef = useRef<GalleryItem[]>(photos);
@@ -1147,11 +1148,200 @@ export default function ShutterscapeClient({
         <a className="l" href="#faq">
           FAQ
         </a>
-        <a href="#contact">Contact Us</a>
+        <a className="l" href="#contact">Contact Us</a>
         <a className="l" href="/admin">
           Admin
         </a>
+
+        {/* Mobile Menu Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-expanded={mobileMenuOpen}
+          aria-label="Toggle navigation menu"
+          className="mobile-menu-btn"
+          style={{
+            marginLeft: "auto",
+            background: mobileMenuOpen ? "var(--tom)" : "var(--mus)",
+            color: mobileMenuOpen ? "#fff" : "var(--ink)",
+            border: "2px solid var(--ink)",
+            borderRadius: "8px",
+            padding: "6px 12px",
+            font: "800 13px Syne, sans-serif",
+            cursor: "pointer",
+            boxShadow: "2px 2px 0 var(--ink)",
+          }}
+        >
+          {mobileMenuOpen ? "✕ Close" : "☰ Menu"}
+        </button>
       </nav>
+
+      {/* Mobile Menu Dropdown Drawer */}
+      {mobileMenuOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50px",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(29, 26, 23, 0.75)",
+            zIndex: 49,
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            style={{
+              background: "var(--wh)",
+              borderBottom: "4px solid var(--ink)",
+              boxShadow: "0 8px 0 var(--ink)",
+              padding: "16px 20px 24px",
+              display: "grid",
+              gap: "10px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "2px solid var(--bone2)",
+                paddingBottom: "8px",
+              }}
+            >
+              <span style={{ font: "20px Gloock, serif" }}>Menu</span>
+              <a
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  background: "var(--teal)",
+                  color: "#fff",
+                  padding: "4px 10px",
+                  borderRadius: "99px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  border: "2px solid var(--ink)",
+                }}
+              >
+                Admin 🔐
+              </a>
+            </div>
+
+            <a
+              href="#gallery"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "9px 12px",
+                background: "var(--bone)",
+                border: "2px solid var(--ink)",
+                borderRadius: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>🖼️ Gallery</span>
+              <span>→</span>
+            </a>
+
+            <a
+              href="/gallery"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "9px 12px",
+                background: "var(--mus)",
+                border: "2px solid var(--ink)",
+                borderRadius: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>⭐ Dedicated Uploaded Gallery</span>
+              <span>→</span>
+            </a>
+
+            <a
+              href="#stories"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "9px 12px",
+                background: "var(--bone)",
+                border: "2px solid var(--ink)",
+                borderRadius: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>📖 Stories</span>
+              <span>→</span>
+            </a>
+
+            <a
+              href="#people"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "9px 12px",
+                background: "var(--bone)",
+                border: "2px solid var(--ink)",
+                borderRadius: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>👥 Students &amp; Leads</span>
+              <span>→</span>
+            </a>
+
+            <a
+              href="#events"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "9px 12px",
+                background: "var(--bone)",
+                border: "2px solid var(--ink)",
+                borderRadius: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>📺 Events &amp; Notices</span>
+              <span>→</span>
+            </a>
+
+            <a
+              href="#contact"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                padding: "9px 12px",
+                background: "var(--tom)",
+                color: "#fff",
+                border: "2px solid var(--ink)",
+                borderRadius: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>✉️ Contact Us</span>
+              <span>→</span>
+            </a>
+          </div>
+        </div>
+      )}
 
       <header id="top" className="hero">
         <span
