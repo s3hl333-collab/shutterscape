@@ -99,7 +99,6 @@ export default function GalleryPage() {
         <a className="l" href="/#events">
           Events &amp; Notices
         </a>
-        <a href="/admin">Admin</a>
       </nav>
 
       <section
@@ -158,13 +157,6 @@ export default function GalleryPage() {
             All photographs uploaded by the club, with captions and credits
             below every frame.
           </small>
-          <a
-            className="bt"
-            href="/admin"
-            style={{ marginLeft: "auto", fontSize: "14px", padding: "10px 18px" }}
-          >
-            Admin Dashboard →
-          </a>
         </div>
 
         {/* Category Filter Bar */}
