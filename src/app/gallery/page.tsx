@@ -25,7 +25,7 @@ export default function GalleryPage() {
   const fetchUploadedGallery = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/gallery");
+      const res = await fetch("/api/gallery", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         const all: GalleryItem[] = data.items || [];
@@ -33,6 +33,8 @@ export default function GalleryPage() {
         const uploadedOnly = all.filter((item) => Boolean(item.src || item.video));
         setItems(uploadedOnly);
       }
+    } catch (err) {
+      console.warn("Failed to load gallery:", err);
     } finally {
       setLoading(false);
     }

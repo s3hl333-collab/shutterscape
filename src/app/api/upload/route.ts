@@ -12,7 +12,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
-    const result = await uploadMedia(file);
+    const title = formData.get("title")?.toString();
+    const cat = formData.get("cat")?.toString();
+    const who = formData.get("who")?.toString();
+    const caption = formData.get("caption")?.toString();
+    const z = formData.get("z")?.toString();
+
+    const result = await uploadMedia(file, { title, cat, who, caption, z });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error("Upload error:", err);

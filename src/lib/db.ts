@@ -3,6 +3,7 @@ import path from "path";
 import os from "os";
 import { MongoClient, Db } from "mongodb";
 import { hashPassword } from "./auth";
+import { fetchCloudinaryGalleryItems, deleteCloudinaryAsset } from "./cloudinary";
 
 export interface GalleryItem {
   id: string;
@@ -504,10 +505,11 @@ export const db = {
   },
 
   async getGallery(): Promise<GalleryItem[]> {
+    let mongoItems: GalleryItem[] | null = null;
     try {
       const mongo = await getMongoDb();
       if (mongo) {
-        return await mongo
+        mongoItems = await mongo
           .collection<GalleryItem>("gallery")
           .find({}, { projection: { _id: 0 } })
           .toArray();
@@ -515,7 +517,33 @@ export const db = {
     } catch (err) {
       console.warn("MongoDB getGallery error, falling back to local/tmp store:", err);
     }
-    return readLocalDb().gallery;
+
+    const baseItems: GalleryItem[] =
+      mongoItems && mongoItems.length > 0 ? mongoItems : readLocalDb().gallery;
+
+    // Synchronize with Cloudinary folder 'shutterscape' so images uploaded via Cloudinary
+    // persist across serverless invocations even when MongoDB is not connected
+    try {
+      const cldItems = await fetchCloudinaryGalleryItems();
+      if (cldItems.length > 0) {
+        const existingUrls = new Set(
+          baseItems.map((i) => (i.src || i.video || "").trim()).filter(Boolean)
+        );
+
+        const newFromCloudinary = cldItems.filter((c) => {
+          const u = (c.src || c.video || "").trim();
+          return u && !existingUrls.has(u);
+        });
+
+        if (newFromCloudinary.length > 0) {
+          return [...newFromCloudinary, ...baseItems];
+        }
+      }
+    } catch (cErr) {
+      console.warn("Error fetching Cloudinary gallery items:", cErr);
+    }
+
+    return baseItems;
   },
 
   async addGalleryItem(item: GalleryItem): Promise<GalleryItem> {
@@ -556,7 +584,13 @@ export const db = {
     try {
       const mongo = await getMongoDb();
       if (mongo) {
+        const item = await mongo.collection<GalleryItem>("gallery").findOne({ id });
         const res = await mongo.collection<GalleryItem>("gallery").deleteOne({ id });
+        if (id.startsWith("cld-")) {
+          await deleteCloudinaryAsset(id);
+        } else if (item?.src && item.src.includes("cloudinary.com")) {
+          await deleteCloudinaryAsset(item.src);
+        }
         return res.deletedCount > 0;
       }
     } catch (err) {
@@ -564,6 +598,12 @@ export const db = {
     }
     const local = readLocalDb();
     const prevLen = local.gallery.length;
+    const itemToDelete = local.gallery.find((g) => g.id === id);
+    if (itemToDelete?.src && itemToDelete.src.includes("cloudinary.com")) {
+      await deleteCloudinaryAsset(itemToDelete.src);
+    } else if (id.startsWith("cld-")) {
+      await deleteCloudinaryAsset(id);
+    }
     local.gallery = local.gallery.filter((g) => g.id !== id);
     writeLocalDb(local);
     return local.gallery.length < prevLen;

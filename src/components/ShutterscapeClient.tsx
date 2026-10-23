@@ -1522,8 +1522,15 @@ export default function ShutterscapeClient({
         </div>
 
         <div className="gg" id="gg">
-          {photos
-            .filter((p) => /^photo-([1-9]|1[0-8])$/.test(p.id))
+          {[...photos]
+            .sort((a, b) => {
+              const aHas = Boolean(a.src || a.video);
+              const bHas = Boolean(b.src || b.video);
+              if (aHas && !bHas) return -1;
+              if (!aHas && bHas) return 1;
+              return 0;
+            })
+            .slice(0, 18)
             .map((p) => (
               <figure
                 key={p.id}

@@ -36,6 +36,8 @@ export default function AdminDashboardPage() {
   const [gSpan, setGSpan] = useState("");
   const [gSrc, setGSrc] = useState("");
   const [gFile, setGFile] = useState<File | null>(null);
+  const [gFilePreview, setGFilePreview] = useState<string | null>(null);
+  const gFileInputRef = useRef<HTMLInputElement>(null);
   const [gSaving, setGSaving] = useState(false);
 
   // Activity Form State
@@ -46,6 +48,8 @@ export default function AdminDashboardPage() {
   const [aDesc, setADesc] = useState("");
   const [aImage, setAImage] = useState("");
   const [aFile, setAFile] = useState<File | null>(null);
+  const [aFilePreview, setAFilePreview] = useState<string | null>(null);
+  const aFileInputRef = useRef<HTMLInputElement>(null);
   const [aUpcoming, setAUpcoming] = useState(false);
   const [aSaving, setASaving] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -59,6 +63,8 @@ export default function AdminDashboardPage() {
   const [mBg, setMBg] = useState("#e0a526");
   const [mSrc, setMSrc] = useState("");
   const [mFile, setMFile] = useState<File | null>(null);
+  const [mFilePreview, setMFilePreview] = useState<string | null>(null);
+  const mFileInputRef = useRef<HTMLInputElement>(null);
   const [mSaving, setMSaving] = useState(false);
 
   const notify = (msg: string) => {
@@ -68,10 +74,10 @@ export default function AdminDashboardPage() {
 
   const loadAll = async () => {
     const [gRes, aRes, mRes, cRes] = await Promise.all([
-      fetch("/api/gallery"),
-      fetch("/api/activities"),
-      fetch("/api/members"),
-      fetch("/api/contact"),
+      fetch("/api/gallery", { cache: "no-store" }),
+      fetch("/api/activities", { cache: "no-store" }),
+      fetch("/api/members", { cache: "no-store" }),
+      fetch("/api/contact", { cache: "no-store" }),
     ]);
     if (gRes.ok) setGallery((await gRes.json()).items || []);
     if (aRes.ok) setActivities((await aRes.json()).items || []);
@@ -98,9 +104,25 @@ export default function AdminDashboardPage() {
     router.push("/admin/login");
   };
 
-  const uploadFileHelper = async (file: File): Promise<string> => {
+  const uploadFileHelper = async (
+    file: File,
+    meta?: {
+      title?: string;
+      cat?: string;
+      who?: string;
+      caption?: string;
+      z?: string;
+    }
+  ): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file);
+    if (meta) {
+      if (meta.title) fd.append("title", meta.title);
+      if (meta.cat) fd.append("cat", meta.cat);
+      if (meta.who) fd.append("who", meta.who);
+      if (meta.caption) fd.append("caption", meta.caption);
+      if (meta.z) fd.append("z", meta.z);
+    }
     const res = await fetch("/api/upload", { method: "POST", body: fd });
     const data = await res.json();
     if (!res.ok || !data.url) {
@@ -119,6 +141,13 @@ export default function AdminDashboardPage() {
     setGSpan("");
     setGSrc("");
     setGFile(null);
+    if (gFilePreview) {
+      URL.revokeObjectURL(gFilePreview);
+      setGFilePreview(null);
+    }
+    if (gFileInputRef.current) {
+      gFileInputRef.current.value = "";
+    }
   };
 
   const startEditPhoto = (p: GalleryItem) => {
@@ -128,8 +157,15 @@ export default function AdminDashboardPage() {
     setGWho(p.who === "Photographer name" ? "" : p.who);
     setGCaption(p.caption || "");
     setGSpan(p.z || "");
-    setGSrc(p.src || "");
+    setGSrc(p.src || p.video || "");
     setGFile(null);
+    if (gFilePreview) {
+      URL.revokeObjectURL(gFilePreview);
+      setGFilePreview(null);
+    }
+    if (gFileInputRef.current) {
+      gFileInputRef.current.value = "";
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -138,11 +174,29 @@ export default function AdminDashboardPage() {
     setGSaving(true);
     try {
       let finalUrl = gSrc.trim() || null;
-      let isVideo = false;
+      let isVideo = Boolean(
+        finalUrl && (finalUrl.endsWith(".mp4") || finalUrl.includes("/video/"))
+      );
       if (gFile) {
         isVideo = gFile.type.startsWith("video/");
-        finalUrl = await uploadFileHelper(gFile);
+        finalUrl = await uploadFileHelper(gFile, {
+          title: gTitle,
+          cat: gCat,
+          who: gWho || "Photographer name",
+          caption: gCaption,
+          z: gSpan,
+        });
       }
+
+      const itemPayload = {
+        title: gTitle,
+        cat: gCat,
+        z: gSpan,
+        src: isVideo ? null : finalUrl,
+        video: isVideo ? finalUrl : null,
+        who: gWho || "Photographer name",
+        caption: gCaption,
+      };
 
       if (editingPhotoId) {
         const res = await fetch("/api/gallery", {
@@ -150,32 +204,24 @@ export default function AdminDashboardPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: editingPhotoId,
-            title: gTitle,
-            cat: gCat,
-            z: gSpan,
-            src: isVideo ? null : finalUrl,
-            video: isVideo ? finalUrl : null,
-            who: gWho || "Photographer name",
-            caption: gCaption,
+            ...itemPayload,
           }),
         });
-        if (!res.ok) throw new Error("Failed to update gallery item.");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to update gallery item.");
+        }
         notify("Gallery frame updated!");
       } else {
         const res = await fetch("/api/gallery", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: gTitle,
-            cat: gCat,
-            z: gSpan,
-            src: isVideo ? null : finalUrl,
-            video: isVideo ? finalUrl : null,
-            who: gWho || "Photographer name",
-            caption: gCaption,
-          }),
+          body: JSON.stringify(itemPayload),
         });
-        if (!res.ok) throw new Error("Failed to add gallery item.");
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to add gallery item.");
+        }
         notify("New image added to Gallery!");
       }
       resetGalleryForm();
@@ -188,6 +234,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteGallery = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this gallery frame?")) return;
     const res = await fetch(`/api/gallery?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
@@ -217,6 +264,13 @@ export default function AdminDashboardPage() {
     setADesc("");
     setAImage("");
     setAFile(null);
+    if (aFilePreview) {
+      URL.revokeObjectURL(aFilePreview);
+      setAFilePreview(null);
+    }
+    if (aFileInputRef.current) {
+      aFileInputRef.current.value = "";
+    }
     setAUpcoming(false);
   };
 
@@ -228,6 +282,13 @@ export default function AdminDashboardPage() {
     setADesc(a.description);
     setAImage(a.image || "");
     setAFile(null);
+    if (aFilePreview) {
+      URL.revokeObjectURL(aFilePreview);
+      setAFilePreview(null);
+    }
+    if (aFileInputRef.current) {
+      aFileInputRef.current.value = "";
+    }
     setAUpcoming(Boolean(a.upcoming));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -238,7 +299,7 @@ export default function AdminDashboardPage() {
     try {
       let finalImg = aImage.trim() || null;
       if (aFile) {
-        finalImg = await uploadFileHelper(aFile);
+        finalImg = await uploadFileHelper(aFile, { title: aTitle });
       }
       const payload = {
         id: editingActId,
@@ -266,6 +327,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteActivity = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this activity?")) return;
     const res = await fetch(`/api/activities?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
@@ -285,6 +347,13 @@ export default function AdminDashboardPage() {
     setMBg("#e0a526");
     setMSrc("");
     setMFile(null);
+    if (mFilePreview) {
+      URL.revokeObjectURL(mFilePreview);
+      setMFilePreview(null);
+    }
+    if (mFileInputRef.current) {
+      mFileInputRef.current.value = "";
+    }
   };
 
   const startEditMember = (m: MemberItem) => {
@@ -296,6 +365,13 @@ export default function AdminDashboardPage() {
     setMBg(m.bg);
     setMSrc(m.src || "");
     setMFile(null);
+    if (mFilePreview) {
+      URL.revokeObjectURL(mFilePreview);
+      setMFilePreview(null);
+    }
+    if (mFileInputRef.current) {
+      mFileInputRef.current.value = "";
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -305,7 +381,7 @@ export default function AdminDashboardPage() {
     try {
       let finalImg = mSrc.trim() || null;
       if (mFile) {
-        finalImg = await uploadFileHelper(mFile);
+        finalImg = await uploadFileHelper(mFile, { title: mName });
       }
       const payload = {
         id: editingMemId,
@@ -333,6 +409,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteMember = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this member?")) return;
     const res = await fetch(`/api/members?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
@@ -474,12 +551,13 @@ export default function AdminDashboardPage() {
             >
               <h2 style={{ fontSize: "36px", marginBottom: "6px" }}>
                 {editingPhotoId
-                  ? "Edit / Upload Image for Frame"
+                  ? `Edit Frame: ${gTitle || "Selected Frame"}`
                   : "Upload New Image to Gallery"}
               </h2>
               <p style={{ margin: "0 0 18px", fontSize: "14px" }}>
-                Upload an image from your device (stored via Cloudinary or{" "}
-                <code>/public/uploads</code>) or paste an image URL.
+                {editingPhotoId
+                  ? "Update details, upload a replacement image/video, or clear the attached photo."
+                  : "Upload an image from your device (automatically synced to Cloudinary) or paste a direct image URL."}
               </p>
 
               <form
@@ -544,6 +622,7 @@ export default function AdminDashboardPage() {
                   </label>
                 </div>
 
+                {/* File picker & Media Preview */}
                 <div
                   style={{
                     display: "grid",
@@ -552,11 +631,28 @@ export default function AdminDashboardPage() {
                   }}
                 >
                   <label style={{ display: "grid", gap: "5px", fontWeight: 600 }}>
-                    Upload Image / Video File
+                    Choose Image / Video File
                     <input
+                      ref={gFileInputRef}
                       type="file"
                       accept="image/*,video/*"
-                      onChange={(e) => setGFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (gFilePreview) URL.revokeObjectURL(gFilePreview);
+                        if (file) {
+                          setGFile(file);
+                          setGFilePreview(URL.createObjectURL(file));
+                          if (!gTitle) {
+                            const clean = file.name
+                              .replace(/\.[^/.]+$/, "")
+                              .replace(/[-_]/g, " ");
+                            setGTitle(clean.charAt(0).toUpperCase() + clean.slice(1));
+                          }
+                        } else {
+                          setGFile(null);
+                          setGFilePreview(null);
+                        }
+                      }}
                       style={{
                         ...inputStyle,
                         background: "var(--bone)",
@@ -565,7 +661,7 @@ export default function AdminDashboardPage() {
                     />
                   </label>
                   <label style={{ display: "grid", gap: "5px", fontWeight: 600 }}>
-                    Or Direct Image URL (optional)
+                    Or Direct Image / Video URL (optional)
                     <input
                       style={inputStyle}
                       value={gSrc}
@@ -574,6 +670,141 @@ export default function AdminDashboardPage() {
                     />
                   </label>
                 </div>
+
+                {/* Active Media Previews */}
+                {gFilePreview ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "12px",
+                      background: "var(--bone)",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "80px",
+                        height: "60px",
+                        borderRadius: "6px",
+                        overflow: "hidden",
+                        border: "2px solid var(--ink)",
+                        background: "#111",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {gFile?.type.startsWith("video/") ? (
+                        <video
+                          src={gFilePreview}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <img
+                          src={gFilePreview}
+                          alt="Preview"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: "13px" }}>
+                      <b style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        Selected File: {gFile?.name}
+                      </b>
+                      <span style={{ opacity: 0.75 }}>
+                        {gFile?.size ? `${(gFile.size / (1024 * 1024)).toFixed(2)} MB` : ""} · Ready to upload
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (gFilePreview) URL.revokeObjectURL(gFilePreview);
+                        setGFile(null);
+                        setGFilePreview(null);
+                        if (gFileInputRef.current) gFileInputRef.current.value = "";
+                      }}
+                      style={{
+                        background: "var(--tom)",
+                        color: "#fff",
+                        border: "2px solid var(--ink)",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Clear File
+                    </button>
+                  </div>
+                ) : gSrc ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "12px",
+                      background: "var(--bone)",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "80px",
+                        height: "60px",
+                        borderRadius: "6px",
+                        overflow: "hidden",
+                        border: "2px solid var(--ink)",
+                        background: "#111",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {gSrc.endsWith(".mp4") || gSrc.includes("/video/") ? (
+                        <video
+                          src={gSrc}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <img
+                          src={gSrc}
+                          alt="Attached media"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: "13px" }}>
+                      <b style={{ display: "block" }}>Currently Attached Media</b>
+                      <span
+                        style={{
+                          opacity: 0.75,
+                          display: "block",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: "380px",
+                        }}
+                      >
+                        {gSrc}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGSrc("")}
+                      style={{
+                        background: "var(--tom)",
+                        color: "#fff",
+                        border: "2px solid var(--ink)",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remove Photo
+                    </button>
+                  </div>
+                ) : null}
 
                 <label style={{ display: "grid", gap: "5px", fontWeight: 600 }}>
                   Short Description / Caption
@@ -588,7 +819,7 @@ export default function AdminDashboardPage() {
                 <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
                   <button type="submit" className="bt" disabled={gSaving}>
                     {gSaving
-                      ? "Saving..."
+                      ? "Uploading & saving..."
                       : editingPhotoId
                         ? "Update Gallery Frame"
                         : "+ Add to Gallery"}
@@ -640,7 +871,21 @@ export default function AdminDashboardPage() {
                         background: "#111",
                       }}
                     >
-                      {p.src ? (
+                      {p.video ? (
+                        <video
+                          src={p.video}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                      ) : p.src ? (
                         <img
                           src={p.src}
                           alt={p.title}
@@ -691,7 +936,7 @@ export default function AdminDashboardPage() {
                           cursor: "pointer",
                         }}
                       >
-                        {p.src ? "Edit Photo" : "Upload Photo"}
+                        {p.src || p.video ? "Edit Frame" : "Upload Photo"}
                       </button>
                       <button
                         type="button"
@@ -871,10 +1116,21 @@ export default function AdminDashboardPage() {
                   <label style={{ display: "grid", gap: "5px", fontWeight: 600 }}>
                     Activity Image (optional)
                     <input
+                      ref={aFileInputRef}
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setAFile(e.target.files?.[0] || null)}
-                      style={{ ...inputStyle, background: "var(--bone)" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (aFilePreview) URL.revokeObjectURL(aFilePreview);
+                        if (file) {
+                          setAFile(file);
+                          setAFilePreview(URL.createObjectURL(file));
+                        } else {
+                          setAFile(null);
+                          setAFilePreview(null);
+                        }
+                      }}
+                      style={{ ...inputStyle, background: "var(--bone)", borderStyle: "dashed" }}
                     />
                   </label>
                   <label
@@ -896,6 +1152,71 @@ export default function AdminDashboardPage() {
                     Highlight as Upcoming Activity
                   </label>
                 </div>
+
+                {aFilePreview ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px",
+                      background: "var(--bone)",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <img
+                      src={aFilePreview}
+                      alt="Activity preview"
+                      style={{ width: "70px", height: "50px", objectFit: "cover", borderRadius: "4px", border: "1px solid var(--ink)" }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, fontSize: "13px" }}>
+                      <b>{aFile?.name}</b>
+                      <span style={{ display: "block", opacity: 0.75 }}>Ready to upload</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (aFilePreview) URL.revokeObjectURL(aFilePreview);
+                        setAFile(null);
+                        setAFilePreview(null);
+                        if (aFileInputRef.current) aFileInputRef.current.value = "";
+                      }}
+                      style={{ background: "var(--tom)", color: "#fff", border: "2px solid var(--ink)", padding: "4px 8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : aImage ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px",
+                      background: "var(--bone)",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <img
+                      src={aImage}
+                      alt="Current activity image"
+                      style={{ width: "70px", height: "50px", objectFit: "cover", borderRadius: "4px", border: "1px solid var(--ink)" }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, fontSize: "13px" }}>
+                      <b>Attached Image</b>
+                      <span style={{ display: "block", opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "300px" }}>{aImage}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAImage("")}
+                      style={{ background: "var(--tom)", color: "#fff", border: "2px solid var(--ink)", padding: "4px 8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
 
                 <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
                   <button type="submit" className="bt" disabled={aSaving}>
@@ -1107,13 +1428,89 @@ export default function AdminDashboardPage() {
                   <label style={{ display: "grid", gap: "5px", fontWeight: 600 }}>
                     Upload Portrait Photo (optional)
                     <input
+                      ref={mFileInputRef}
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setMFile(e.target.files?.[0] || null)}
-                      style={{ ...inputStyle, background: "var(--bone)" }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (mFilePreview) URL.revokeObjectURL(mFilePreview);
+                        if (file) {
+                          setMFile(file);
+                          setMFilePreview(URL.createObjectURL(file));
+                        } else {
+                          setMFile(null);
+                          setMFilePreview(null);
+                        }
+                      }}
+                      style={{ ...inputStyle, background: "var(--bone)", borderStyle: "dashed" }}
                     />
                   </label>
                 </div>
+
+                {mFilePreview ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px",
+                      background: "var(--bone)",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <img
+                      src={mFilePreview}
+                      alt="Portrait preview"
+                      style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "99px", border: "2px solid var(--ink)" }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, fontSize: "13px" }}>
+                      <b>{mFile?.name}</b>
+                      <span style={{ display: "block", opacity: 0.75 }}>Ready to upload portrait</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mFilePreview) URL.revokeObjectURL(mFilePreview);
+                        setMFile(null);
+                        setMFilePreview(null);
+                        if (mFileInputRef.current) mFileInputRef.current.value = "";
+                      }}
+                      style={{ background: "var(--tom)", color: "#fff", border: "2px solid var(--ink)", padding: "4px 8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : mSrc ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px",
+                      background: "var(--bone)",
+                      border: "2px solid var(--ink)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    <img
+                      src={mSrc}
+                      alt="Current portrait"
+                      style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "99px", border: "2px solid var(--ink)" }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, fontSize: "13px" }}>
+                      <b>Current Portrait</b>
+                      <span style={{ display: "block", opacity: 0.75, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "300px" }}>{mSrc}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMSrc("")}
+                      style={{ background: "var(--tom)", color: "#fff", border: "2px solid var(--ink)", padding: "4px 8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Remove Portrait
+                    </button>
+                  </div>
+                ) : null}
 
                 <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
                   <button type="submit" className="bt" disabled={mSaving}>
