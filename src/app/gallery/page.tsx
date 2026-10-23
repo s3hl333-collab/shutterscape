@@ -220,7 +220,7 @@ export default function GalleryPage() {
               maxWidth: "620px",
               margin: "40px auto",
             }}
-          >
+          > 
             <div
               style={{ width: "84px", margin: "0 auto 16px" }}
               dangerouslySetInnerHTML={{ __html: ART.camera() }}
