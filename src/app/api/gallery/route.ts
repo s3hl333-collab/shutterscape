@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db, GalleryItem } from "@/lib/db";
 import { getAuthenticatedAdmin } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const items = await db.getGallery();

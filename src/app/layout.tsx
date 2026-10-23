@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: "Shutterscape | Photography club, Girijananda Chowdhury University",
   description:
     "The photography club of Girijananda Chowdhury University. We photograph the strange, the soft and the ordinary until they look back.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/favicon.ico",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

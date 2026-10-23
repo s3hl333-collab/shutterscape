@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { MongoClient, Db } from "mongodb";
 import { hashPassword } from "./auth";
 
@@ -344,94 +345,155 @@ export async function getMongoDb(): Promise<Db | null> {
   if (!uri) return null;
   if (cachedDb) return cachedDb;
   try {
-    const client = new MongoClient(uri);
+    const client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 4000,
+      connectTimeoutMS: 4000,
+    });
     await client.connect();
     cachedClient = client;
     cachedDb = client.db(process.env.MONGODB_DB || "shutterscape");
-    // Ensure default data is seeded if empty
-    const adminCount = await cachedDb.collection("admins").countDocuments();
-    if (adminCount === 0) {
-      await cachedDb.collection("admins").insertMany(DEFAULT_ADMINS);
+
+    // Ensure default data is seeded if empty (non-fatal)
+    try {
+      const adminCount = await cachedDb.collection("admins").countDocuments();
+      if (adminCount === 0) {
+        await cachedDb.collection("admins").insertMany(DEFAULT_ADMINS);
+      }
+      const galleryCount = await cachedDb.collection("gallery").countDocuments();
+      if (galleryCount === 0) {
+        await cachedDb.collection("gallery").insertMany(DEFAULT_GALLERY);
+      }
+      const membersCount = await cachedDb.collection("members").countDocuments();
+      if (membersCount === 0) {
+        await cachedDb.collection("members").insertMany(DEFAULT_MEMBERS);
+      }
+      const activitiesCount = await cachedDb.collection("activities").countDocuments();
+      if (activitiesCount === 0) {
+        await cachedDb.collection("activities").insertMany(DEFAULT_ACTIVITIES);
+      }
+    } catch (seedErr) {
+      console.warn("MongoDB initial seed error (non-fatal):", seedErr);
     }
-    const galleryCount = await cachedDb.collection("gallery").countDocuments();
-    if (galleryCount === 0) {
-      await cachedDb.collection("gallery").insertMany(DEFAULT_GALLERY);
-    }
-    const membersCount = await cachedDb.collection("members").countDocuments();
-    if (membersCount === 0) {
-      await cachedDb.collection("members").insertMany(DEFAULT_MEMBERS);
-    }
-    const activitiesCount = await cachedDb.collection("activities").countDocuments();
-    if (activitiesCount === 0) {
-      await cachedDb.collection("activities").insertMany(DEFAULT_ACTIVITIES);
-    }
+
     return cachedDb;
   } catch (err) {
-    console.warn("MongoDB connection failed, using local JSON fallback:", err);
+    console.warn("MongoDB connection failed, using local/tmp fallback:", err);
     return null;
   }
 }
 
-// Local JSON Database Fallback
-const DB_DIR = path.join(process.cwd(), "data");
-const DB_FILE = path.join(DB_DIR, "db.json");
+// Local JSON Database Fallback (serverless-proof with /tmp and in-memory fallback)
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const LOCAL_DB_DIR = path.join(process.cwd(), "data");
+const LOCAL_DB_FILE = path.join(LOCAL_DB_DIR, "db.json");
+const TMP_DB_DIR = path.join(os.tmpdir(), "shutterscape");
+const TMP_DB_FILE = path.join(TMP_DB_DIR, "db.json");
+
+// In-memory cache singleton to guarantee consistency across requests
+let memoryDb: DatabaseSchema | null = null;
 
 export function readLocalDb(): DatabaseSchema {
-  try {
-    if (!fs.existsSync(DB_DIR)) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(DB_FILE)) {
-      const initial: DatabaseSchema = {
-        admins: DEFAULT_ADMINS,
-        gallery: DEFAULT_GALLERY,
-        members: DEFAULT_MEMBERS,
-        activities: DEFAULT_ACTIVITIES,
-        messages: [],
-      };
-      fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), "utf8");
-      return initial;
-    }
-    const raw = fs.readFileSync(DB_FILE, "utf8");
-    const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
-    return {
-      admins: parsed.admins?.length ? parsed.admins : DEFAULT_ADMINS,
-      gallery: parsed.gallery ?? DEFAULT_GALLERY,
-      members: parsed.members ?? DEFAULT_MEMBERS,
-      activities: parsed.activities ?? DEFAULT_ACTIVITIES,
-      messages: parsed.messages ?? [],
-    };
-  } catch {
-    return {
-      admins: DEFAULT_ADMINS,
-      gallery: DEFAULT_GALLERY,
-      members: DEFAULT_MEMBERS,
-      activities: DEFAULT_ACTIVITIES,
-      messages: [],
-    };
+  if (memoryDb) {
+    return memoryDb;
   }
+
+  // 1. Try reading from /tmp/shutterscape/db.json (if previously written in this container)
+  if (fs.existsSync(TMP_DB_FILE)) {
+    try {
+      const raw = fs.readFileSync(TMP_DB_FILE, "utf8");
+      const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
+      memoryDb = {
+        admins: parsed.admins?.length ? parsed.admins : DEFAULT_ADMINS,
+        gallery: parsed.gallery ?? DEFAULT_GALLERY,
+        members: parsed.members ?? DEFAULT_MEMBERS,
+        activities: parsed.activities ?? DEFAULT_ACTIVITIES,
+        messages: parsed.messages ?? [],
+      };
+      return memoryDb!;
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Try reading from bundled data/db.json in project
+  if (fs.existsSync(LOCAL_DB_FILE)) {
+    try {
+      const raw = fs.readFileSync(LOCAL_DB_FILE, "utf8");
+      const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
+      memoryDb = {
+        admins: parsed.admins?.length ? parsed.admins : DEFAULT_ADMINS,
+        gallery: parsed.gallery ?? DEFAULT_GALLERY,
+        members: parsed.members ?? DEFAULT_MEMBERS,
+        activities: parsed.activities ?? DEFAULT_ACTIVITIES,
+        messages: parsed.messages ?? [],
+      };
+      return memoryDb!;
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Fallback to default in-memory schema
+  memoryDb = {
+    admins: DEFAULT_ADMINS,
+    gallery: DEFAULT_GALLERY,
+    members: DEFAULT_MEMBERS,
+    activities: DEFAULT_ACTIVITIES,
+    messages: [],
+  };
+  return memoryDb;
 }
 
 export function writeLocalDb(data: DatabaseSchema): void {
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
+  // Always update in-memory state first
+  memoryDb = data;
+
+  const serialized = JSON.stringify(data, null, 2);
+
+  // 1. If not running in serverless, try writing to local project data/db.json
+  let written = false;
+  if (!IS_SERVERLESS) {
+    try {
+      if (!fs.existsSync(LOCAL_DB_DIR)) {
+        fs.mkdirSync(LOCAL_DB_DIR, { recursive: true });
+      }
+      fs.writeFileSync(LOCAL_DB_FILE, serialized, "utf8");
+      written = true;
+    } catch {
+      // Ignore read-only or permission errors on restricted disks
+    }
   }
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf8");
+
+  // 2. Fallback to writing to /tmp/shutterscape/db.json (always writable on Vercel)
+  if (!written) {
+    try {
+      if (!fs.existsSync(TMP_DB_DIR)) {
+        fs.mkdirSync(TMP_DB_DIR, { recursive: true });
+      }
+      fs.writeFileSync(TMP_DB_FILE, serialized, "utf8");
+    } catch {
+      // Memory state is already updated, ignore disk write failure
+    }
+  }
 }
 
-// Unified Data Access Layer (MongoDB first, automatic local JSON fallback)
+// Unified Data Access Layer (MongoDB first, automatic local/tmp/memory fallback)
 export const db = {
   async findAdmin(identifier: string): Promise<AdminUser | null> {
     const q = identifier.trim().toLowerCase();
-    const mongo = await getMongoDb();
-    if (mongo) {
-      const user = await mongo.collection<AdminUser>("admins").findOne({
-        $or: [
-          { username: { $regex: new RegExp(`^${q}$`, "i") } },
-          { email: { $regex: new RegExp(`^${q}$`, "i") } },
-        ],
-      });
-      if (user) return user;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        const user = await mongo.collection<AdminUser>("admins").findOne({
+          $or: [
+            { username: { $regex: new RegExp(`^${q}$`, "i") } },
+            { email: { $regex: new RegExp(`^${q}$`, "i") } },
+          ],
+        });
+        if (user) return user;
+      }
+    } catch (err) {
+      console.warn("MongoDB findAdmin error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     return (
@@ -442,34 +504,45 @@ export const db = {
   },
 
   async getGallery(): Promise<GalleryItem[]> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      return mongo
-        .collection<GalleryItem>("gallery")
-        .find({}, { projection: { _id: 0 } })
-        .toArray();
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        return await mongo
+          .collection<GalleryItem>("gallery")
+          .find({}, { projection: { _id: 0 } })
+          .toArray();
+      }
+    } catch (err) {
+      console.warn("MongoDB getGallery error, falling back to local/tmp store:", err);
     }
     return readLocalDb().gallery;
   },
 
   async addGalleryItem(item: GalleryItem): Promise<GalleryItem> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<GalleryItem>("gallery").insertOne({ ...item });
-      return item;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<GalleryItem>("gallery").insertOne({ ...item });
+        return item;
+      }
+    } catch (err) {
+      console.warn("MongoDB addGalleryItem error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
-    // Prepend or append? Let's prepend new uploads or place them so they appear prominently in the gallery!
     local.gallery.unshift(item);
     writeLocalDb(local);
     return item;
   },
 
   async updateGalleryItem(id: string, updates: Partial<GalleryItem>): Promise<GalleryItem | null> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<GalleryItem>("gallery").updateOne({ id }, { $set: updates });
-      return mongo.collection<GalleryItem>("gallery").findOne({ id }, { projection: { _id: 0 } });
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<GalleryItem>("gallery").updateOne({ id }, { $set: updates });
+        return await mongo.collection<GalleryItem>("gallery").findOne({ id }, { projection: { _id: 0 } });
+      }
+    } catch (err) {
+      console.warn("MongoDB updateGalleryItem error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const idx = local.gallery.findIndex((g) => g.id === id);
@@ -480,10 +553,14 @@ export const db = {
   },
 
   async deleteGalleryItem(id: string): Promise<boolean> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      const res = await mongo.collection<GalleryItem>("gallery").deleteOne({ id });
-      return res.deletedCount > 0;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        const res = await mongo.collection<GalleryItem>("gallery").deleteOne({ id });
+        return res.deletedCount > 0;
+      }
+    } catch (err) {
+      console.warn("MongoDB deleteGalleryItem error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const prevLen = local.gallery.length;
@@ -493,21 +570,29 @@ export const db = {
   },
 
   async getMembers(): Promise<MemberItem[]> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      return mongo
-        .collection<MemberItem>("members")
-        .find({}, { projection: { _id: 0 } })
-        .toArray();
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        return await mongo
+          .collection<MemberItem>("members")
+          .find({}, { projection: { _id: 0 } })
+          .toArray();
+      }
+    } catch (err) {
+      console.warn("MongoDB getMembers error, falling back to local/tmp store:", err);
     }
     return readLocalDb().members;
   },
 
   async addMember(item: MemberItem): Promise<MemberItem> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<MemberItem>("members").insertOne({ ...item });
-      return item;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<MemberItem>("members").insertOne({ ...item });
+        return item;
+      }
+    } catch (err) {
+      console.warn("MongoDB addMember error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     local.members.push(item);
@@ -516,10 +601,14 @@ export const db = {
   },
 
   async updateMember(id: string, updates: Partial<MemberItem>): Promise<MemberItem | null> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<MemberItem>("members").updateOne({ id }, { $set: updates });
-      return mongo.collection<MemberItem>("members").findOne({ id }, { projection: { _id: 0 } });
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<MemberItem>("members").updateOne({ id }, { $set: updates });
+        return await mongo.collection<MemberItem>("members").findOne({ id }, { projection: { _id: 0 } });
+      }
+    } catch (err) {
+      console.warn("MongoDB updateMember error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const idx = local.members.findIndex((m) => m.id === id);
@@ -530,10 +619,14 @@ export const db = {
   },
 
   async deleteMember(id: string): Promise<boolean> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      const res = await mongo.collection<MemberItem>("members").deleteOne({ id });
-      return res.deletedCount > 0;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        const res = await mongo.collection<MemberItem>("members").deleteOne({ id });
+        return res.deletedCount > 0;
+      }
+    } catch (err) {
+      console.warn("MongoDB deleteMember error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const prevLen = local.members.length;
@@ -543,13 +636,17 @@ export const db = {
   },
 
   async getActivities(): Promise<ActivityItem[]> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      return mongo
-        .collection<ActivityItem>("activities")
-        .find({}, { projection: { _id: 0 } })
-        .sort({ upcoming: -1, createdAt: -1 })
-        .toArray();
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        return await mongo
+          .collection<ActivityItem>("activities")
+          .find({}, { projection: { _id: 0 } })
+          .sort({ upcoming: -1, createdAt: -1 })
+          .toArray();
+      }
+    } catch (err) {
+      console.warn("MongoDB getActivities error, falling back to local/tmp store:", err);
     }
     const list = readLocalDb().activities;
     return [...list].sort((a, b) => {
@@ -561,10 +658,14 @@ export const db = {
   },
 
   async addActivity(item: ActivityItem): Promise<ActivityItem> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<ActivityItem>("activities").insertOne({ ...item });
-      return item;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<ActivityItem>("activities").insertOne({ ...item });
+        return item;
+      }
+    } catch (err) {
+      console.warn("MongoDB addActivity error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     local.activities.unshift(item);
@@ -573,10 +674,14 @@ export const db = {
   },
 
   async updateActivity(id: string, updates: Partial<ActivityItem>): Promise<ActivityItem | null> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<ActivityItem>("activities").updateOne({ id }, { $set: updates });
-      return mongo.collection<ActivityItem>("activities").findOne({ id }, { projection: { _id: 0 } });
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<ActivityItem>("activities").updateOne({ id }, { $set: updates });
+        return await mongo.collection<ActivityItem>("activities").findOne({ id }, { projection: { _id: 0 } });
+      }
+    } catch (err) {
+      console.warn("MongoDB updateActivity error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const idx = local.activities.findIndex((a) => a.id === id);
@@ -587,10 +692,14 @@ export const db = {
   },
 
   async deleteActivity(id: string): Promise<boolean> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      const res = await mongo.collection<ActivityItem>("activities").deleteOne({ id });
-      return res.deletedCount > 0;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        const res = await mongo.collection<ActivityItem>("activities").deleteOne({ id });
+        return res.deletedCount > 0;
+      }
+    } catch (err) {
+      console.warn("MongoDB deleteActivity error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const prevLen = local.activities.length;
@@ -600,22 +709,30 @@ export const db = {
   },
 
   async getMessages(): Promise<ContactSignal[]> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      return mongo
-        .collection<ContactSignal>("messages")
-        .find({}, { projection: { _id: 0 } })
-        .sort({ createdAt: -1 })
-        .toArray();
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        return await mongo
+          .collection<ContactSignal>("messages")
+          .find({}, { projection: { _id: 0 } })
+          .sort({ createdAt: -1 })
+          .toArray();
+      }
+    } catch (err) {
+      console.warn("MongoDB getMessages error, falling back to local/tmp store:", err);
     }
     return readLocalDb().messages;
   },
 
   async addMessage(msg: ContactSignal): Promise<ContactSignal> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      await mongo.collection<ContactSignal>("messages").insertOne({ ...msg });
-      return msg;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        await mongo.collection<ContactSignal>("messages").insertOne({ ...msg });
+        return msg;
+      }
+    } catch (err) {
+      console.warn("MongoDB addMessage error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     local.messages.unshift(msg);
@@ -624,10 +741,14 @@ export const db = {
   },
 
   async deleteMessage(id: string): Promise<boolean> {
-    const mongo = await getMongoDb();
-    if (mongo) {
-      const res = await mongo.collection<ContactSignal>("messages").deleteOne({ id });
-      return res.deletedCount > 0;
+    try {
+      const mongo = await getMongoDb();
+      if (mongo) {
+        const res = await mongo.collection<ContactSignal>("messages").deleteOne({ id });
+        return res.deletedCount > 0;
+      }
+    } catch (err) {
+      console.warn("MongoDB deleteMessage error, falling back to local/tmp store:", err);
     }
     const local = readLocalDb();
     const prevLen = local.messages.length;
